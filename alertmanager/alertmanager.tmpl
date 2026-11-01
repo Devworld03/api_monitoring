@@ -1,0 +1,30 @@
+# Placeholders (__LIKE_THIS__) are replaced from .env when the container starts.
+route:
+  receiver: slack-and-email
+  group_by: [alertname, endpoint]
+  group_wait: 5s
+  group_interval: 1m
+  repeat_interval: 1h
+
+receivers:
+  - name: slack-and-email
+    slack_configs:
+      - api_url: "__SLACK_WEBHOOK_URL__"
+        send_resolved: true
+        title: "[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}"
+        text: |
+          {{ range .Alerts }}*{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          severity: {{ .Labels.severity }}
+          {{ end }}
+    email_configs:
+      - to: "__ALERT_EMAIL_TO__"
+        from: "__GMAIL_USER__"
+        smarthost: "smtp.gmail.com:587"
+        auth_username: "__GMAIL_USER__"
+        auth_identity: "__GMAIL_USER__"
+        auth_password: "__GMAIL_APP_PASSWORD__"
+        require_tls: true
+        send_resolved: true
+        headers:
+          Subject: "[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}"

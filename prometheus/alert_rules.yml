@@ -1,0 +1,68 @@
+groups:
+  - name: api-alerts
+    rules:
+      # 1. API downtime: Prometheus cannot scrape the app
+      - alert: APIDown
+        expr: up{job="fastapi-app"} == 0
+        for: 15s
+        labels: {severity: critical}
+        annotations:
+          summary: "API is DOWN"
+          description: "Prometheus cannot reach the FastAPI app (up == 0)."
+
+      # 2. Response time above 3 seconds (average per endpoint, last 1 minute)
+      - alert: SlowResponse
+        expr: |
+          sum by (endpoint) (rate(http_request_duration_seconds_sum[1m]))
+          /
+          sum by (endpoint) (rate(http_request_duration_seconds_count[1m])) > 3
+        for: 5s
+        labels: {severity: warning}
+        annotations:
+          summary: "Slow responses on {{ $labels.endpoint }}"
+          description: "Average response time is {{ $value | printf \"%.2f\" }}s (threshold 3s). Possible timeout."
+
+      # 3. HTTP 500 errors
+      - alert: HTTP500Errors
+        expr: sum by (endpoint) (increase(http_requests_total{status="500"}[1m])) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "HTTP 500 on {{ $labels.endpoint }}"
+          description: "Server errors detected. Check GET /debug/errors for exception type and traceback."
+
+      # 4. Increased failure rate: more than 10% of requests failed (status >= 400)
+      - alert: HighFailureRate
+        expr: |
+          sum(rate(http_requests_total{status=~"[45].."}[1m]))
+          /
+          sum(rate(http_requests_total[1m])) > 0.10
+        for: 15s
+        labels: {severity: warning}
+        annotations:
+          summary: "High failure rate"
+          description: "{{ $value | humanizePercentage }} of requests are failing (threshold 10%)."
+
+      # 5. Service health failure
+      - alert: ServiceHealthFailure
+        expr: app_health_status == 0
+        for: 10s
+        labels: {severity: critical}
+        annotations:
+          summary: "Service health check failing"
+          description: "The /health endpoint reports the service as unhealthy."
+
+      # Extra (for scenario 1): authentication failures
+      - alert: AuthenticationFailures
+        expr: sum by (endpoint) (increase(http_requests_total{status=~"401|403"}[1m])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Authentication failures on {{ $labels.endpoint }}"
+          description: "Requests are being rejected with 401/403. Invalid or missing API key."
+
+      # Extra (for scenario 4): rate limit exceeded
+      - alert: RateLimitExceeded
+        expr: sum by (endpoint) (increase(http_requests_total{status="429"}[1m])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Rate limit hit on {{ $labels.endpoint }}"
+          description: "HTTP 429 responses detected. A client is sending too many requests."

@@ -1,0 +1,50 @@
+services:
+  app:
+    build: .
+    environment:
+      - API_KEY=${API_KEY:-secret-key-123}
+    ports:
+      - "8000:8000"
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - app
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    env_file: .env
+    volumes:
+      - ./alertmanager/alertmanager.tmpl:/etc/alertmanager/alertmanager.tmpl:ro
+    # Alertmanager cannot read env vars itself, so we fill the secrets in with sed at start.
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - >
+        sed -e "s|__SLACK_WEBHOOK_URL__|$$SLACK_WEBHOOK_URL|g"
+        -e "s|__GMAIL_USER__|$$GMAIL_USER|g"
+        -e "s|__GMAIL_APP_PASSWORD__|$$GMAIL_APP_PASSWORD|g"
+        -e "s|__ALERT_EMAIL_TO__|$$ALERT_EMAIL_TO|g"
+        /etc/alertmanager/alertmanager.tmpl > /tmp/alertmanager.yml &&
+        exec /bin/alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/alertmanager
+    ports:
+      - "9093:9093"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
