@@ -1,10 +1,3 @@
-"""Metrics + monitoring middleware.
-
-This file is the heart of the project. For every request it records:
-  1. a counter   -> how many requests, per endpoint and status code
-  2. a histogram -> how long each request took
-  3. error details (type, message, traceback) when the code crashes
-"""
 import json
 import logging
 import time

@@ -12,9 +12,27 @@ simulate_failures.py --> FastAPI app (:8000) --/metrics--> Prometheus (:9090) --
 
 Requirements: Docker + Docker Compose, a Slack Incoming Webhook, a Gmail App Password.
 
+**Step 1: Clone the repository**
+
 ```bash
-git clone <your-repo-url> && cd api-monitoring-dashboard
-cp .env.example .env        # then edit .env with your Slack webhook and Gmail details
+git clone https://github.com/Devworld03/api_monitoring.git
+cd api_monitoring
+```
+
+**Step 2: Create a `.env` file** in the project root (same folder as `docker-compose.yml`) and add your details:
+
+```env
+API_KEY=anything_your_secret_key
+
+# Slack: Incoming Webhook URL
+SLACK_WEBHOOK_URL=your_webhook_url
+GMAIL_USER=your_gmail
+GMAIL_APP_PASSWORD=your_app_password
+ALERT_EMAIL_TO=alert_mail
+
+**Step 3: Start the stack**
+
+```bash
 docker compose up --build
 ```
 
